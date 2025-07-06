@@ -8,7 +8,7 @@ import feedparser
 from fastapi.responses import JSONResponse
 
 # Import RAG and LLM systems
-from .rag_fallback import RAGSystemFallback as RAGSystem
+from .rag_basic import RAGSystemBasic as RAGSystem
 from .llm import LLMInterface
 from .security import security_guardrails
 from .utils import load_personal_info, validate_question, format_response
