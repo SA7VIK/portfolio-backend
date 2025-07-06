@@ -7,10 +7,19 @@ import os
 import feedparser
 from fastapi.responses import JSONResponse
 
-from .rag import RAGSystem
+# Import RAG and LLM systems
+try:
+    from .rag import RAGSystem
+    FAISS_AVAILABLE = True
+    print("Using FAISS-based RAG system")
+except ImportError:
+    from .rag_fallback import RAGSystemFallback as RAGSystem
+    FAISS_AVAILABLE = False
+    print("Using scikit-learn fallback RAG system")
+
 from .llm import LLMInterface
-from .utils import load_personal_info, validate_question, format_response
 from .security import security_guardrails
+from .utils import load_personal_info, validate_question, format_response
 
 # Initialize FastAPI app
 app = FastAPI(
