@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: satvik-portfolio-backend
+    env: python
+    buildCommand: ./build.sh
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: HUGGINGFACE_API_KEY
+        sync: false
+      - key: OLLAMA_BASE_URL
+        value: http://localhost:11434
+      - key: LLM_PROVIDER
+        value: groq
+      - key: EMBEDDING_MODEL
+        value: all-mpnet-base-v2
+      - key: RAG_INDEX_PATH
+        value: ./rag_index
+      - key: PERSONAL_INFO_PATH
+        value: ./personal_info.txt 
