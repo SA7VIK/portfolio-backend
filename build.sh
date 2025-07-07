@@ -1,13 +1,14 @@
-#!/usr/bin/env bash
-# exit on error
-set -o errexit
+#!/bin/bash
 
-# Install dependencies
+echo "🔧 Building Portfolio Backend..."
+
+# Upgrade pip
 pip install --upgrade pip
-pip install setuptools wheel
 
-# Install clean requirements (no ML dependencies)
-pip install -r requirements_clean.txt
+# Install dependencies with no binary wheels (force pure Python)
+pip install --no-binary=all -r requirements.txt
+
+echo "✅ Build completed successfully!"
 
 # Create necessary directories
 mkdir -p data 
