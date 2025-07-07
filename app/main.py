@@ -52,8 +52,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Development
-        "https://sa7vik.in",      # Production
+        "https://sa7vik.in",      # Production custom domain
         "https://www.sa7vik.in",  # Production with www
+        "https://satvik-portfolio-backend.onrender.com",  # New Render backend
         "https://portfolio-frontend-two-phi.vercel.app",  # Vercel preview
         "https://portfolio-website-sa7vik.vercel.app",   # Vercel production
     ],
