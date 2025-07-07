@@ -55,6 +55,7 @@ app.add_middleware(
         "https://sa7vik.in",      # Production
         "https://www.sa7vik.in",  # Production with www
         "https://portfolio-frontend-two-phi.vercel.app",  # Vercel preview
+        "https://portfolio-website-sa7vik.vercel.app",   # Vercel production
     ],
     allow_credentials=True,
     allow_methods=["*"],
