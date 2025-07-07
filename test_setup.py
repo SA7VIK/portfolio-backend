@@ -13,10 +13,16 @@ def test_imports():
         'uvicorn',
         'dotenv',
         'requests',
-        'feedparser',
         'app.llm',
         'app.main'
     ]
+    
+    # Test feedparser separately since it's optional
+    try:
+        import feedparser
+        print("✅ feedparser (optional)")
+    except ImportError:
+        print("⚠️  feedparser (optional) - not available")
     
     print("Testing imports...")
     for module in modules:

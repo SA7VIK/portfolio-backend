@@ -4,8 +4,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import feedparser
 import json
+
+# Try to import feedparser, but make it optional
+try:
+    import feedparser
+    FEEDPARSER_AVAILABLE = True
+except ImportError:
+    FEEDPARSER_AVAILABLE = False
+    print("Warning: feedparser not available. Blog functionality will be disabled.")
 
 # Import LLM interface
 from .llm import LLMInterface
@@ -175,6 +182,11 @@ async def get_personal_info():
 @app.get("/medium-blogs")
 async def get_medium_blogs():
     """Fetch and parse Medium RSS feed for @sa7vik and return blog post data as JSON."""
+    if not FEEDPARSER_AVAILABLE:
+        return JSONResponse(content=[], status_code=503, headers={
+            "X-Warning": "Blog functionality disabled - feedparser not available"
+        })
+    
     rss_url = "https://medium.com/feed/@sa7vik"
     try:
         feed = feedparser.parse(rss_url)
