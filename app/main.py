@@ -1,74 +1,22 @@
+import os
+import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
-import uvicorn
-import os
-import feedparser
 from fastapi.responses import JSONResponse
+import feedparser
+import json
 
-# Import RAG and LLM systems
-from .rag_basic import RAGSystemBasic as RAGSystem
+# Import LLM interface
 from .llm import LLMInterface
-from .security import security_guardrails
-from .utils import load_personal_info, validate_question, format_response
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Portfolio Chatbot API",
-    description="A chatbot API that provides information about a person using RAG and LLM",
-    version="1.0.0"
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Development
-        "https://sa7vik.in",      # Production
-        "https://www.sa7vik.in",  # Production with www
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Pydantic models
-class ChatRequest(BaseModel):
-    message: str
-    conversation_history: Optional[List[dict]] = []
-
-class ChatResponse(BaseModel):
-    response: str
-    context_used: Optional[str] = None
-    error: Optional[str] = None
-
-class HealthResponse(BaseModel):
-    status: str
-    rag_ready: bool
-    llm_ready: bool
-    message: str
-
-# Global instances
-rag_system = None
-llm_interface = None
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize RAG and LLM systems on startup."""
-    global rag_system, llm_interface
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup and shutdown."""
+    global llm_interface
     
+    # Startup
     print("Starting Portfolio Chatbot API...")
-    
-    # Initialize RAG system
-    rag_system = RAGSystem()
-    
-    # Try to load existing index, otherwise build new one
-    if not rag_system.load_index():
-        print("Building new RAG index...")
-        personal_info = load_personal_info()
-        rag_system.build_index(personal_info)
-        rag_system.save_index()
     
     # Initialize LLM interface
     # You can change the provider here: "ollama", "openrouter", "huggingface", "groq", "mock"
@@ -78,8 +26,82 @@ async def startup_event():
     llm_interface = LLMInterface(provider=llm_provider, model_name=llm_model)
     
     print(f"Initialized with LLM provider: {llm_provider}, model: {llm_model}")
+    
+    yield
+    
+    # Shutdown
+    print("Shutting down Portfolio Chatbot API...")
 
-@app.get("/", response_model=dict)
+# Initialize FastAPI app
+app = FastAPI(
+    title="Portfolio Chatbot API",
+    description="A chatbot API that provides information about Satvik using LLM",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Development
+        "https://sa7vik.in",      # Production
+        "https://www.sa7vik.in",  # Production with www
+        "https://portfolio-frontend-two-phi.vercel.app",  # Vercel preview
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Satvik's information as context
+SATVIK_CONTEXT = """
+## About Satvik
+Satvik is an AI Engineer & Researcher with expertise in high-performance computing, quantum machine learning, and RAG systems. He loves building intelligent systems that can actually think.
+
+## Technical Skills
+- **High-Performance Computing**: CUDA, MPI, distributed systems
+- **Quantum Machine Learning**: Qiskit, quantum algorithms
+- **RAG Systems**: Vector databases, embeddings, retrieval
+- **Agent-to-Agent MCP**: Multi-agent systems, coordination
+- **Languages**: Python, C++, Rust, JavaScript
+- **Frameworks**: PyTorch, TensorFlow, FastAPI, React
+
+## Projects
+- **MoneyInsight**: AI-powered financial analysis platform
+- **DermCare Solutions**: Medical image analysis for dermatology
+- **Email Marketing Agent**: Automated email campaign optimization
+
+## Experience
+- AI Research at leading institutions
+- Full-stack development experience
+- Published research in quantum ML
+- Open source contributions
+
+## Personal Interests
+- Gym and fitness
+- Cooking and experimenting with recipes
+- Anime and Japanese culture
+- Spirituality and meditation
+
+## Contact Information
+- Email: Available through portfolio
+- GitHub: @SA7VIK
+- LinkedIn: Satvik Singh
+"""
+
+# Global LLM interface
+llm_interface = None
+
+def validate_question(message: str) -> bool:
+    """Validate if the question is appropriate."""
+    if len(message.strip()) < 3:
+        return False
+    return True
+
+
+
+@app.get("/")
 async def root():
     """Root endpoint."""
     return {
@@ -92,107 +114,63 @@ async def root():
         }
     }
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    global rag_system, llm_interface
+    global llm_interface
     
-    rag_ready = rag_system is not None and rag_system.index is not None
     llm_ready = llm_interface is not None and llm_interface.test_connection()
     
-    status = "healthy" if rag_ready and llm_ready else "unhealthy"
-    message = "All systems operational" if rag_ready and llm_ready else "Some systems are not ready"
+    status = "healthy" if llm_ready else "unhealthy"
+    message = "All systems operational" if llm_ready else "LLM system not ready"
     
-    return HealthResponse(
-        status=status,
-        rag_ready=rag_ready,
-        llm_ready=llm_ready,
-        message=message
-    )
+    return {
+        "status": status,
+        "rag_ready": True,
+        "llm_ready": llm_ready,
+        "message": message
+    }
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, http_request: Request):
-    """Main chat endpoint with security guardrails."""
-    global rag_system, llm_interface
+@app.post("/chat")
+async def chat(request: Request):
+    """Main chat endpoint."""
+    global llm_interface
     
-    if not rag_system or not llm_interface:
-        raise HTTPException(status_code=503, detail="Systems not initialized")
-    
-    # Get client IP
-    client_ip = http_request.client.host
-    user_agent = http_request.headers.get("user-agent", "")
-    
-    # Security validation
-    is_valid, validation_msg, violations = security_guardrails.validate_request(
-        message=request.message,
-        conversation_history=request.conversation_history,
-        client_ip=client_ip,
-        user_agent=user_agent
-    )
-    
-    if not is_valid:
-        return ChatResponse(
-            response="I'm sorry, but I cannot process that request. Please ask a valid question about Satvik.",
-            error=validation_msg
-        )
-    
-    # Validate the question format
-    if not validate_question(request.message):
-        return ChatResponse(
-            response="Please ask a valid question about Satvik (at least 3 characters).",
-            error="Invalid question format"
-        )
+    if not llm_interface:
+        raise HTTPException(status_code=503, detail="LLM system not initialized")
     
     try:
-        # Get relevant context using RAG
-        context = rag_system.get_context_for_query(request.message)
+        # Parse request body
+        body = await request.json()
+        message = body.get("message", "")
+        conversation_history = body.get("conversation_history", [])
         
-        # Generate response using LLM
-        response = llm_interface.generate_response(request.message, context)
+        # Validate the question format
+        if not validate_question(message):
+            return {
+                "response": "Please ask a valid question about Satvik (at least 3 characters).",
+                "error": "Invalid question format"
+            }
         
-        # Format the response
-        formatted_response = format_response(response)
+        # Generate response using LLM with context
+        response = llm_interface.generate_response(message, SATVIK_CONTEXT)
         
-        return ChatResponse(
-            response=formatted_response,
-            context_used=context if context != "I don't have specific information about that." else None
-        )
+        return {
+            "response": response,
+            "context_used": "Direct context system"
+        }
         
     except Exception as e:
-        import traceback
         print(f"Error in chat endpoint: {e}")
-        print(f"Full traceback: {traceback.format_exc()}")
-        return ChatResponse(
-            response="Sorry, I encountered an error while processing your question. Please try again.",
-            error=str(e)
-        )
-
-@app.post("/rebuild-index")
-async def rebuild_index():
-    """Rebuild the RAG index from personal info."""
-    global rag_system
-    
-    if not rag_system:
-        raise HTTPException(status_code=503, detail="RAG system not initialized")
-    
-    try:
-        personal_info = load_personal_info()
-        rag_system.build_index(personal_info)
-        rag_system.save_index()
-        
-        return {"message": "RAG index rebuilt successfully"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rebuilding index: {str(e)}")
+        return {
+            "response": "Sorry, I encountered an error while processing your question. Please try again.",
+            "error": str(e)
+        }
 
 @app.get("/personal-info")
 async def get_personal_info():
-    """Get the current personal information."""
-    try:
-        personal_info = load_personal_info()
-        return {"personal_info": personal_info}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading personal info: {str(e)}")
+    """Get Satvik's personal information."""
+    return {"personal_info": SATVIK_CONTEXT}
 
 @app.get("/medium-blogs")
 async def get_medium_blogs():
@@ -224,20 +202,6 @@ async def get_medium_blogs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching Medium blogs: {str(e)}")
 
-@app.get("/security/stats")
-async def get_security_stats():
-    """Get security statistics (admin only in production)."""
-    return security_guardrails.get_security_stats()
-
-@app.post("/security/reset/{ip}")
-async def reset_ip_block(ip: str):
-    """Reset IP block (admin only in production)."""
-    if ip in security_guardrails.blocked_ips:
-        security_guardrails.blocked_ips.remove(ip)
-        security_guardrails.ip_violation_count[ip] = 0
-        return {"message": f"IP {ip} unblocked successfully"}
-    return {"message": f"IP {ip} was not blocked"}
-
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
@@ -245,4 +209,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         log_level="info"
-    )
+    ) 

@@ -1,27 +1,16 @@
 services:
   - type: web
-    name: satvik-portfolio-backend
+    name: portfolio-backend
     env: python
-    buildCommand: ./build.sh
-    startCommand: uvicorn app.main_minimal:app --host 0.0.0.0 --port $PORT
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: LLM_PROVIDER
+        value: mock
+      - key: LLM_MODEL
+        value: llama3-8b-8192
       - key: GROQ_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY
-        sync: false
-      - key: HUGGINGFACE_API_KEY
-        sync: false
-      - key: OLLAMA_BASE_URL
-        value: http://localhost:11434
-      - key: LLM_PROVIDER
-        value: groq
-      - key: LLM_MODEL
-        value: llama3-8b-8192
-      - key: EMBEDDING_MODEL
-        value: all-mpnet-base-v2
-      - key: RAG_INDEX_PATH
-        value: ./rag_index
-      - key: PERSONAL_INFO_PATH
-        value: ./personal_info.txt 
+        sync: false 

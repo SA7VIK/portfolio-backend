@@ -6,8 +6,8 @@ set -o errexit
 pip install --upgrade pip
 pip install setuptools wheel
 
-# Install minimal requirements (no Rust dependencies)
-pip install -r requirements_minimal_render.txt
+# Install clean requirements (no ML dependencies)
+pip install -r requirements_clean.txt
 
 # Create necessary directories
-mkdir -p rag_index 
+mkdir -p data 

@@ -1,172 +1,191 @@
-# Portfolio Chatbot Backend
+# Portfolio Backend API
 
-A FastAPI-based backend for a portfolio chatbot that uses RAG (Retrieval-Augmented Generation) and LLM to provide information about a person.
+A FastAPI backend for Satvik's portfolio website with an intelligent chatbot powered by LLMs.
 
 ## Features
 
-- **FastAPI**: Modern, fast web framework
-- **RAG System**: Uses FAISS and Sentence Transformers for semantic search
-- **Multiple LLM Providers**: Support for Ollama (local), OpenRouter (cloud), and Hugging Face
-- **CORS Support**: Ready for frontend integration
-- **Health Checks**: System status monitoring
-- **Auto-reload**: Development-friendly
+- 🤖 **Intelligent Chatbot**: Powered by various LLM providers (Groq, OpenRouter, Ollama, etc.)
+- 📝 **Blog Integration**: Fetches Medium blog posts via RSS
+- 🏥 **Health Monitoring**: Comprehensive health checks
+- 🌐 **CORS Support**: Configured for frontend integration
+- 🔧 **Flexible LLM**: Easy to switch between different LLM providers
 
-## Setup
+## LLM Providers
 
-### 1. Install Dependencies
+The backend supports multiple LLM providers:
+
+### 1. Mock Mode (Default)
+- **Provider**: `mock`
+- **Use Case**: Testing and development
+- **Setup**: No API keys required
+- **Response**: Pre-defined responses with context
+
+### 2. Groq (Recommended for Production)
+- **Provider**: `groq`
+- **Models**: `llama3-8b-8192`, `mixtral-8x7b-32768`
+- **Setup**: Set `GROQ_API_KEY` environment variable
+- **Cost**: Very affordable, fast responses
+
+### 3. OpenRouter
+- **Provider**: `openrouter`
+- **Models**: Various models from different providers
+- **Setup**: Set `OPENROUTER_API_KEY` environment variable
+- **Cost**: Pay-per-use
+
+### 4. Ollama (Local)
+- **Provider**: `ollama`
+- **Models**: Any model installed locally
+- **Setup**: Install Ollama and run locally
+- **Cost**: Free (local processing)
+
+## Quick Start
+
+### Local Development
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Set environment variables** (optional):
+   ```bash
+   export LLM_PROVIDER=mock  # or groq, openrouter, ollama
+   export LLM_MODEL=llama3-8b-8192
+   export GROQ_API_KEY=your_groq_api_key  # if using Groq
+   ```
+
+3. **Run the server**:
+   ```bash
+   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+4. **Test the API**:
+   ```bash
+   # Health check
+   curl http://localhost:8000/health
+   
+   # Chat with the bot
+   curl -X POST http://localhost:8000/chat \
+     -H "Content-Type: application/json" \
+     -d '{"message": "Tell me about Satvik"}'
+   ```
+
+### Deployment
+
+#### Using the Deployment Script
 
 ```bash
-cd backend
-pip install -r requirements.txt
+./deploy.sh
 ```
 
-### 2. Configure LLM Provider
+This script will:
+- Install dependencies
+- Test the application
+- Verify endpoints work
+- Provide deployment instructions
 
-Choose one of the following LLM providers:
+#### Manual Deployment
 
-#### Option A: Ollama (Recommended - Local, Free)
-
-1. Install Ollama: https://ollama.ai/
-2. Pull a model:
-   ```bash
-   ollama pull llama2
-   # or
-   ollama pull mistral
-   ```
-3. Set environment variables:
-   ```bash
-   export LLM_PROVIDER=ollama
-   export LLM_MODEL=llama2
-   ```
-
-#### Option B: OpenRouter (Cloud, Free Tier)
-
-1. Get API key from: https://openrouter.ai/
-2. Set environment variables:
-   ```bash
-   export OPENROUTER_API_KEY=your_api_key_here
-   export LLM_PROVIDER=openrouter
-   export LLM_MODEL=openai/gpt-3.5-turbo
-   ```
-
-#### Option C: Hugging Face (Local, Free)
-
-1. Install additional dependencies:
-   ```bash
-   pip install transformers torch
-   ```
-2. Set environment variables:
-   ```bash
-   export LLM_PROVIDER=huggingface
-   export LLM_MODEL=gpt2
-   ```
-
-### 3. Customize Personal Information
-
-Edit `app/data/personal_info.md` with your own information. The system will automatically build the RAG index from this file.
-
-### 4. Run the Backend
-
-```bash
-cd backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-The API will be available at: http://localhost:8000
+1. **Push to GitHub**
+2. **Connect to Render/Railway/Heroku**
+3. **Set environment variables**:
+   - `LLM_PROVIDER`: Choose your provider
+   - `LLM_MODEL`: Model name
+   - `GROQ_API_KEY`: If using Groq
+   - `OPENROUTER_API_KEY`: If using OpenRouter
 
 ## API Endpoints
 
-### Health Check
-```bash
-GET /health
-```
-Returns system status and readiness.
+### `GET /`
+Root endpoint with API information.
 
-### Chat
-```bash
-POST /chat
-Content-Type: application/json
-
+### `GET /health`
+Health check endpoint.
+```json
 {
-  "message": "What are your skills?",
+  "status": "healthy",
+  "rag_ready": true,
+  "llm_ready": true,
+  "message": "All systems operational"
+}
+```
+
+### `POST /chat`
+Main chatbot endpoint.
+```json
+{
+  "message": "Tell me about Satvik's skills",
   "conversation_history": []
 }
 ```
 
-### Rebuild Index
-```bash
-POST /rebuild-index
+Response:
+```json
+{
+  "response": "Based on the information provided, Satvik has expertise in...",
+  "context_used": "Direct context system"
+}
 ```
-Rebuilds the RAG index from personal info (useful after updating personal_info.md).
 
-### Get Personal Info
-```bash
-GET /personal-info
-```
-Returns the current personal information.
+### `GET /personal-info`
+Get Satvik's information context.
 
-## API Documentation
-
-Once the server is running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-## Project Structure
-
-```
-backend/
-├── app/
-│   ├── main.py              # FastAPI application
-│   ├── rag.py               # RAG system implementation
-│   ├── llm.py               # LLM interface
-│   ├── utils.py             # Utility functions
-│   └── data/
-│       ├── personal_info.md # Your personal information
-│       └── rag_index.pkl    # Generated RAG index (auto-created)
-├── requirements.txt         # Python dependencies
-└── README.md               # This file
-```
+### `GET /medium-blogs`
+Fetch blog posts from Medium RSS feed.
 
 ## Environment Variables
 
-- `LLM_PROVIDER`: "ollama", "openrouter", or "huggingface"
-- `LLM_MODEL`: Model name for the selected provider
-- `OPENROUTER_API_KEY`: API key for OpenRouter (if using OpenRouter)
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `LLM_PROVIDER` | LLM provider to use | `mock` | No |
+| `LLM_MODEL` | Model name for the provider | `llama3-8b-8192` | No |
+| `GROQ_API_KEY` | API key for Groq | - | Yes (if using Groq) |
+| `OPENROUTER_API_KEY` | API key for OpenRouter | - | Yes (if using OpenRouter) |
+
+## Context System
+
+The chatbot uses a comprehensive context about Satvik including:
+- Personal information
+- Technical skills
+- Projects
+- Experience
+- Interests
+- Contact information
+
+This context is provided directly to the LLM, ensuring accurate and relevant responses.
 
 ## Troubleshooting
 
-### Ollama Connection Issues
-- Make sure Ollama is running: `ollama serve`
-- Check if model is downloaded: `ollama list`
-- Test connection: `curl http://localhost:11434/api/tags`
+### Common Issues
 
-### RAG Index Issues
-- Delete `app/data/rag_index.pkl` and restart to rebuild
-- Check if `personal_info.md` exists and has content
+1. **LLM not responding**:
+   - Check API keys are set correctly
+   - Verify provider and model names
+   - Test with mock mode first
 
-### Memory Issues
-- Use smaller models (e.g., `llama2:7b` instead of `llama2:70b`)
-- Reduce chunk size in `utils.py`
+2. **Deployment failures**:
+   - Ensure all dependencies are in `requirements.txt`
+   - Check environment variables are set
+   - Verify the start command in deployment config
 
-## Development
+3. **CORS errors**:
+   - Update `allow_origins` in `main.py` with your frontend URL
 
-### Adding New LLM Providers
+### Testing
 
-1. Add provider logic in `llm.py`
-2. Update the `generate_response` method
-3. Add provider to environment variable options
+Use the deployment script to test everything:
+```bash
+./deploy.sh
+```
 
-### Customizing RAG
+## Contributing
 
-- Modify chunk size in `utils.py`
-- Change embedding model in `rag.py`
-- Adjust similarity threshold in `get_context_for_query`
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-## Production Deployment
+## License
 
-For production:
-1. Set specific CORS origins instead of "*"
-2. Use environment variables for configuration
-3. Add proper logging
-4. Consider using a production ASGI server like Gunicorn
-5. Add rate limiting and authentication if needed
+MIT License - see LICENSE file for details.
